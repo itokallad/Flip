@@ -58,7 +58,16 @@ curl -X POST http://localhost:8000/api/orders \
 Because the mock provider is built to be unreliable, by chance you will observe the following in your queue worker output and logs:
 - **Timeouts/Delays:** 20% chance of a 2-3 second delay on submission.
 - **500 Internal Errors:** 20% chance of throwing a 500 error on submission, and 10% chance on status checks. The async worker automatically catches these and attempts retries.
-- **Final Failure:** 10% chance the final provider status resolves to `FAILED` instead of `COMPLETED`.
+- **Random Failure:** 10% chance the final provider status resolves to `FAILED` instead of `COMPLETED`.
+
+### Deterministic Failure Testing
+To guarantee the mock provider ultimately returns a `FAILED` status, prefix your `orderId` payload with `fail_`.
+```bash
+curl -X POST http://localhost:8000/api/orders \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{"orderId": "fail_12345"}'
+```
 
 ## Health Check Endpoint
 

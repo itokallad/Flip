@@ -39,10 +39,14 @@ class ProviderSimulationController extends Controller
         }
 
         $providerOrderId = Str::uuid()->toString();
+        $isFailTest = str_starts_with($orderId, 'fail_');
 
         Cache::put('provider_submit_'.$orderId, $providerOrderId, now()->addHours(1));
 
-        Cache::put('provider_status_'.$providerOrderId, now()->timestamp, now()->addHours(1));
+        Cache::put('provider_status_'.$providerOrderId, [
+            'timestamp' => now()->timestamp,
+            'force_fail' => $isFailTest,
+        ], now()->addHours(1));
 
         return response()->json([
             'providerOrderId' => $providerOrderId,
@@ -52,11 +56,15 @@ class ProviderSimulationController extends Controller
 
     public function status(Request $request, $providerOrderId)
     {
-        $submittedAt = Cache::get('provider_status_'.$providerOrderId);
+        $statusData = Cache::get('provider_status_'.$providerOrderId);
 
-        if (! $submittedAt) {
+        if (! $statusData) {
             return response()->json(['error' => 'Provider order not found'], 404);
         }
+
+        // Support array-based cache schema or fallback to timestamp for old records
+        $submittedAt = is_array($statusData) ? $statusData['timestamp'] : $statusData;
+        $forceFail = is_array($statusData) ? ($statusData['force_fail'] ?? false) : false;
 
         $elapsedSeconds = now()->timestamp - $submittedAt;
 
@@ -74,7 +82,11 @@ class ProviderSimulationController extends Controller
             ]);
         }
 
-        $finalStatus = (rand(1, 100) <= 90) ? 'COMPLETED' : 'FAILED';
+        if ($forceFail) {
+            $finalStatus = 'FAILED';
+        } else {
+            $finalStatus = (rand(1, 100) <= 90) ? 'COMPLETED' : 'FAILED';
+        }
 
         return response()->json([
             'providerOrderId' => $providerOrderId,
