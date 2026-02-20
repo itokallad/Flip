@@ -25,27 +25,17 @@ class ProviderSimulationController extends Controller
             ]);
         }
 
-        if (rand(1, 100) <= 20) {
-            usleep(rand(2000000, 3000000));
-        } else {
-            usleep(rand(100000, 500000));
-        }
-
-        if (rand(1, 100) <= 20) {
-            return response()->json([
-                'error' => 'Internal Provider Error',
-                'message' => 'Simulated 500 error.',
-            ], 500);
-        }
-
         $providerOrderId = Str::uuid()->toString();
         $isFailTest = str_starts_with($orderId, 'fail_');
+        $isRetryTest = str_starts_with($orderId, 'retry_');
 
         Cache::put('provider_submit_'.$orderId, $providerOrderId, now()->addHours(1));
 
         Cache::put('provider_status_'.$providerOrderId, [
             'timestamp' => now()->timestamp,
             'force_fail' => $isFailTest,
+            'force_retry' => $isRetryTest,
+            'status_check_count' => 0,
         ], now()->addHours(1));
 
         return response()->json([
@@ -62,20 +52,28 @@ class ProviderSimulationController extends Controller
             return response()->json(['error' => 'Provider order not found'], 404);
         }
 
-        // Support array-based cache schema or fallback to timestamp for old records
         $submittedAt = is_array($statusData) ? $statusData['timestamp'] : $statusData;
         $forceFail = is_array($statusData) ? ($statusData['force_fail'] ?? false) : false;
+        $forceRetry = is_array($statusData) ? ($statusData['force_retry'] ?? false) : false;
+        $checkCount = is_array($statusData) ? ($statusData['status_check_count'] ?? 0) : 0;
 
-        $elapsedSeconds = now()->timestamp - $submittedAt;
+        $checkCount++;
 
-        if (rand(1, 100) <= 10) {
+        if (is_array($statusData)) {
+            $statusData['status_check_count'] = $checkCount;
+            Cache::put('provider_status_'.$providerOrderId, $statusData, now()->addHours(1));
+        }
+
+        if ($forceRetry && $checkCount <= 2) {
             return response()->json([
                 'error' => 'Internal Provider Error',
-                'message' => 'Simulated 500 error on status fetch.',
+                'message' => 'Simulated deterministic 500 error for retry testing.',
             ], 500);
         }
 
-        if ($elapsedSeconds < rand(2, 5)) {
+        $elapsedSeconds = now()->timestamp - $submittedAt;
+
+        if ($elapsedSeconds < 2) {
             return response()->json([
                 'providerOrderId' => $providerOrderId,
                 'status' => 'PENDING',
@@ -85,7 +83,7 @@ class ProviderSimulationController extends Controller
         if ($forceFail) {
             $finalStatus = 'FAILED';
         } else {
-            $finalStatus = (rand(1, 100) <= 90) ? 'COMPLETED' : 'FAILED';
+            $finalStatus = 'COMPLETED';
         }
 
         return response()->json([

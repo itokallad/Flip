@@ -44,21 +44,11 @@ php artisan queue:work
 ```
 This worker continuously listens for `ProcessOrderJob`. It handles communication with the simulated external provider, manages state transitions (e.g., `RECEIVED` -> `SUBMITTED` -> `PENDING` -> `COMPLETED`/`FAILED`), and implements automatic retries when interacting with fluctuating endpoints.
 
-## How to Trigger Provider Failures/Timeouts
+## Testing Provider Failures and Retries
 
-The application includes a built-in provider simulation (`/api/provider/submit` and `/api/provider/status/{id}`) \
+The application includes a built-in provider simulation (`/api/provider/submit` and `/api/provider/status/{id}`) built for deterministic testing of different real-world API states.
 
-To see failures and timeouts in action, simply create a few orders via the API (ensure your queue worker is running!):
-```bash
-curl -X POST http://localhost:8000/api/orders \
-  -H "Content-Type: application/json" \
-  -d '{"orderId": "order_123"}'
-```
-
-Because the mock provider is built to be unreliable, by chance you will observe the following in your queue worker output and logs:
-- **Timeouts/Delays:** 20% chance of a 2-3 second delay on submission.
-- **500 Internal Errors:** 20% chance of throwing a 500 error on submission, and 10% chance on status checks. The async worker automatically catches these and attempts retries.
-- **Random Failure:** 10% chance the final provider status resolves to `FAILED` instead of `COMPLETED`.
+Because the mock provider is built to be deterministic, you must use specific `orderId` prefixes to trigger failures.
 
 ### Deterministic Failure Testing
 To guarantee the mock provider ultimately returns a `FAILED` status, prefix your `orderId` payload with `fail_`.
@@ -67,6 +57,17 @@ curl -X POST http://localhost:8000/api/orders \
   -H "Accept: application/json" \
   -H "Content-Type: application/json" \
   -d '{"orderId": "fail_12345"}'
+```
+
+### Deterministic Retry Testing (500 Errors)
+To test the async worker's ability to gracefully catch and retry 500 Internal Server errors from the provider, prefix your `orderId` payload with `retry_`.
+
+The mock provider will intentionally throw a `500` error on the first two status checks, forcing the `ProcessOrderJob` to fail and retry. On the third attempt, it will successfully return `COMPLETED`.
+```bash
+curl -X POST http://localhost:8000/api/orders \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{"orderId": "retry_12345"}'
 ```
 
 ## Health Check Endpoint
