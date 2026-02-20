@@ -72,6 +72,8 @@ test('can get an order with its history', function () {
         '*/api/provider/status/*' => Http::response(['status' => 'COMPLETED'], 200),
     ]);
 
+    // Manually run the job to transition statuses after the initial RECEIVED transition is created
+    (new ProcessOrderJob($order))->handle();
 
     $response = $this->getJson("/api/orders/{$order->id}");
 
