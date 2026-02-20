@@ -26,6 +26,14 @@
 
 The application will be accessible at `http://localhost:8000`.
 
+## API Client Usage (Postman / ThunderClient)
+
+If you are using an API client like Postman, you must pass the `Accept: application/json` header. 
+
+Laravel defaults to returning a `302 Found` redirect back to the home page if a FormRequest validation fails on what it thinks is a web browser. By setting `Accept: application/json`, Laravel knows you are an API client and will correctly return `422 Unprocessable Content` JSON validation errors instead.
+
+Make sure your body is also set to `raw` -> `JSON`.
+
 ## How the Async Worker Runs
 
 The application uses Laravel's built-in queue system to process orders asynchronously without blocking the main API requests. 
@@ -52,7 +60,6 @@ Because the mock provider is built to be unreliable, by chance you will observe 
 - **500 Internal Errors:** 20% chance of throwing a 500 error on submission, and 10% chance on status checks. The async worker automatically catches these and attempts retries.
 - **Final Failure:** 10% chance the final provider status resolves to `FAILED` instead of `COMPLETED`.
 
-- 
 ## Health Check Endpoint
 
 The application includes a system health check endpoint located at `/health` returning a `200 OK` JSON response.
@@ -71,7 +78,7 @@ curl http://localhost:8000/health
 If the database connection fundamentally fails, it returns a `500 Internal Server Error` with `{"status": "error", "message": "Database connection failed"}`.
 
 ## Key Trade-offs
-- - **Polling vs Webhooks:** Used polling for guaranteed updates; Webhooks would be more efficient.
+- **Polling vs Webhooks:** Used polling for guaranteed updates; Webhooks would be more efficient.
 - **Cache for Idempotency:** Used Cache for speed; Database unique constraints would be safer.
 - Code would be refactored with services and action classes to make it more testable and maintainable.
 
