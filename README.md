@@ -36,7 +36,7 @@ To start the worker, run the following command in a separate terminal:
 ```bash
 php artisan queue:work
 ```
-This worker continuously listens for `ProcessOrderJob` and `CheckProviderStatusJob` tasks. It handles communication with the simulated external provider, manages state transitions (e.g., `RECEIVED` -> `SUBMITTED` -> `PENDING` -> `COMPLETED`/`FAILED`), and implements automatic retries when interacting with fluctuating endpoints.
+This worker continuously listens for `ProcessOrderJob`. It handles communication with the simulated external provider, manages state transitions (e.g., `RECEIVED` -> `SUBMITTED` -> `PENDING` -> `COMPLETED`/`FAILED`), and implements automatic retries when interacting with fluctuating endpoints.
 
 ## How to Trigger Provider Failures/Timeouts
 
